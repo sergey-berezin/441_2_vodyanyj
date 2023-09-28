@@ -74,9 +74,8 @@ namespace Task1
             try
             {
                 var answer = await Task.Run(() => bert.GetAnswerAsync(text, question, сancellationToken));
-               // consoleMutex.WaitOne();
-                Console.WriteLine(question + " : " + answer);
-               // consoleMutex.ReleaseMutex();
+                Console.WriteLine($"Your question: {question} - Your answer:{answer}");
+
             }
             catch (Exception ex)
             {
