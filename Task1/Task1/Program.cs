@@ -35,7 +35,7 @@ namespace Task1
                     Console.WriteLine();
                     string modelUrl = "https://storage.yandexcloud.net/dotnet4/bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
 
-                    Bert bert = Bert.getBert(modelUrl);
+                    Bert bert = Bert.GetBert(modelUrl);
                     consoleMutex.WaitOne();
                     while ((!сancellationToken.IsCancellationRequested))
                     {
@@ -73,7 +73,7 @@ namespace Task1
         {
             try
             {
-                var answer = await Task.Run(() => bert.GetAnswerAsync(text, question, сancellationToken));
+                var answer = await bert.GetAnswerAsync(text, question, сancellationToken);
                 Console.WriteLine($"Your question: {question} - Your answer:{answer}");
 
             }

@@ -15,8 +15,7 @@ namespace Bert_neural_network
             this.session = inferenceSession;
         }
 
-
-        public static Bert getBert(string modelUrl)
+        public static Bert GetBert(string modelUrl)
         {
             string modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
             if (!File.Exists(modelPath))
@@ -50,8 +49,6 @@ namespace Bert_neural_network
             }
             throw new Exception($"Не удалось скачать модель после {maxAttempts} попыток. Попробуйте позже");
         }
-
-
 
         public Task<String> GetAnswerAsync(string text, string question, CancellationToken cancellationToken)
         {
@@ -105,16 +102,16 @@ namespace Bert_neural_network
                 catch (OperationCanceledException)
                 {
                     sessionMutex.ReleaseMutex();
-                    return "Aborted";
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     sessionMutex.ReleaseMutex();
-                    return ex.Message;
+                    throw;
                 }
             }, cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Current);
         }
-        
+
         public static Tensor<long> ConvertToTensor(long[] inputArray, int inputDimension)
         {
             Tensor<long> input = new DenseTensor<long>(new[] { 1, inputDimension });
@@ -125,7 +122,9 @@ namespace Bert_neural_network
             }
             return input;
         }
+
     }
+
     public class BertInput
     {
         public long[] InputIds { get; set; }
