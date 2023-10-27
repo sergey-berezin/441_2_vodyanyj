@@ -8,21 +8,18 @@ namespace Bert_neural_network
 {
     public class Bert
     {
+        public static InferenceSession session;
         Mutex sessionMutex = new();
-        public InferenceSession session;
-        public Bert(InferenceSession inferenceSession)
-        {
-            this.session = inferenceSession;
-        }
+        public Bert() {}
 
-        public static Bert GetBert(string modelUrl)
+        public static void GetBert(string modelUrl)
         {
             string modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
             if (!File.Exists(modelPath))
             {
                 DownloadBert(modelPath, modelUrl);
             }
-            return new Bert(new InferenceSession(modelPath));
+            session = new InferenceSession(modelPath);
         }
         
         public static void DownloadBert(string modelPath, string modelUrl, int maxAttempts=3)
