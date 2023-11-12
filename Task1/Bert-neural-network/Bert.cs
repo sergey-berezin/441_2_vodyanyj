@@ -8,22 +8,42 @@ namespace Bert_neural_network
 {
     public class Bert
     {
-        public static InferenceSession session;
-        Mutex sessionMutex = new();
-        public Bert() {}
 
-        public static void GetBert(string modelUrl)
+        static InferenceSession session;
+        static CancellationToken сancellationToken;
+        static string modelPath;
+        public static bool isDownloaded = false;
+        static string modelUrl = "https://storage.yandexcloud.net/dotnet4/bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
+        Mutex sessionMutex = new();
+        public Bert(string modelPath, CancellationToken сancellationToken)
         {
-            string modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
-            if (!File.Exists(modelPath))
-            {
-                DownloadBert(modelPath, modelUrl);
-            }
-            session = new InferenceSession(modelPath);
+            Bert.modelPath = modelPath;
+            Bert.сancellationToken = сancellationToken;
         }
-        
-        public static void DownloadBert(string modelPath, string modelUrl, int maxAttempts=3)
+
+        public Task DownloadBertAsync()
         {
+            return Task.Factory.StartNew(() => {
+
+                try
+                {
+                    DownloadBert(modelPath, modelUrl);
+                    isDownloaded = true;
+                    return;
+                }
+                catch { }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        public void DownloadBert(string modelPath, string modelUrl, int maxAttempts = 3)
+        {
+            if (File.Exists(modelPath))
+            {
+                session = new InferenceSession(modelPath);
+                isDownloaded = true;
+                return;
+            }
+
             int attempts = 0;
             while (attempts < maxAttempts)
             {
@@ -32,6 +52,7 @@ namespace Bert_neural_network
                     using (var client = new WebClient())
                     {
                         client.DownloadFile(modelUrl, modelPath);
+                        isDownloaded = true;
                     }
                     return;
                 }
@@ -129,4 +150,3 @@ namespace Bert_neural_network
         public long[] TypeIds { get; set; }
     }
 }
-

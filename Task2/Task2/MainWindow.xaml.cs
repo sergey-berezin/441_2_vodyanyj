@@ -14,82 +14,101 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
+using Bert_neural_network;
+using System.Threading;
 
 namespace Task2
 {
     public partial class MainWindow : Window
     {
+        public static string modelUrl = "https://storage.yandexcloud.net/dotnet4/bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
+        public static string modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
+        public static CancellationTokenSource сancellationTokenSource = new();
+        public static CancellationToken сancellationToken = сancellationTokenSource.Token;
+        public static Bert bert = new Bert(modelPath, сancellationToken);
 
-        ViewData viewData = new ViewData();
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = viewData;
-            Chat.ItemsSource = viewData.ChatView;
-            viewData.GetBertAsync();
+            bert.DownloadBertAsync();
         }
 
-        private void ButtonCancelClick(object sender, RoutedEventArgs e)
+        private void LoadTextButton_Click(object sender, RoutedEventArgs e)
         {
-            viewData.сancellationTokenSource.Cancel();
-        }
+            OpenFileDialog openFileDialog = new OpenFileDialog();
 
-        private async void ButtonSendClick(object sender, RoutedEventArgs e)
-        {
-            ButtonSend.IsEnabled = false;
-            try
+            if (openFileDialog.ShowDialog() == true)
             {
-                string question = TextBoxQuestion.Text;
-                TextBoxQuestion.Clear();
-                viewData.ChatView.Add(question);
-                Chat.Items.Refresh();
-                if (question.StartsWith("/load"))
+                try
                 {
-                    var openFileDialog = new OpenFileDialog()
-                    {
-                        Title = "File",
-                        Filter = "Text Document (*.txt) | *.txt",
-                        FileName = ""
-                    };
-                    if (openFileDialog.ShowDialog() == true)
-                    {
-                        viewData.text = File.ReadAllText(openFileDialog.FileName);
-                        viewData.ChatView.Add(viewData.text);
-                    }
+                    string text = File.ReadAllText(openFileDialog.FileName);
+                    LoadedTextControl.Text = text;
+                    DialogHistoryListBox.Items.Clear();
+
                 }
-                else if (!viewData.isDownloaded)
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Model is not downloaded yet");
+                    MessageBox.Show($"Ошибка при чтении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-                else if (viewData.text == "")
+            }
+        }
+
+        private async void GetAnswerButton_Click(object sender, RoutedEventArgs e)
+        {
+            string question_text = QuestionTextBox.Text;
+            if (question_text == "")
+            {
+                MessageBox.Show("Вы не ввели вопрос");
+                return;
+            }
+            if (LoadedTextControl.Text == "")
+            {
+                MessageBox.Show("Сначала загрузите файл");
+                return;
+            }
+            GetAnsButton.IsEnabled = false;
+            string answer_text = "";
+            QuestionTextBox.Clear();
+            try
+            {              
+                if (!Bert.isDownloaded)
                 {
-                    MessageBox.Show("Enter /load to get text file");
+                    MessageBox.Show("Модель еще не загружена, пожалуйста, подождите");
                 }
                 else
                 {
-                    var answer = await viewData.bert.GetAnswerAsync(viewData.text, question, viewData.сancellationToken);
-                    if (answer != null)
-                    {
-                        viewData.ChatView.Add("Answer: " + answer);
-                    }
+                    answer_text = await bert.GetAnswerAsync(LoadedTextControl.Text, question_text, сancellationToken);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
-            Chat.Items.Refresh();
-            ButtonSend.IsEnabled = true;
+
+            Message question = new Message { IsQuestion = true, Text = question_text };
+            Message answer = new Message { IsQuestion = false, Text = answer_text };
+
+            AddMessage(question);
+            AddMessage(answer);
+
+            GetAnsButton.IsEnabled = true;
         }
 
-        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void AddMessage(Message entry)
         {
-
+            DialogHistoryListBox.Items.Add(entry);
+            DialogHistoryListBox.ScrollIntoView(entry);
         }
 
-        private void ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        public class Message
         {
+            public bool IsQuestion { get; set; }
+            public string? Text { get; set; }
+        }
 
+        private void CancelAnalysisButton_Click(object sender, RoutedEventArgs e)
+        {
+            сancellationTokenSource.Cancel();
         }
     }
 }
