@@ -16,6 +16,7 @@ using System.Windows.Shapes;
 using System.IO;
 using Bert_neural_network;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace Task2
 {
@@ -26,12 +27,15 @@ namespace Task2
         public static CancellationTokenSource сancellationTokenSource = new();
         public static CancellationToken сancellationToken = сancellationTokenSource.Token;
         public static Bert bert = new Bert(modelPath, сancellationToken);
-
+        private string historyFilePath = "dialog_history.json";
         public MainWindow()
         {
             InitializeComponent();
             bert.DownloadBertAsync();
+            InitializeDialog();
         }
+
+
 
         private void LoadTextButton_Click(object sender, RoutedEventArgs e)
         {
@@ -66,32 +70,53 @@ namespace Task2
                 MessageBox.Show("Сначала загрузите файл");
                 return;
             }
-            GetAnsButton.IsEnabled = false;
-            string answer_text = "";
-            QuestionTextBox.Clear();
-            try
-            {              
-                if (!Bert.isDownloaded)
-                {
-                    MessageBox.Show("Модель еще не загружена, пожалуйста, подождите");
-                }
-                else
-                {
-                    answer_text = await bert.GetAnswerAsync(LoadedTextControl.Text, question_text, сancellationToken);
-                }
-            }
-            catch (Exception ex)
+
+            DialogHistory? history = LoadHistory();
+            
+            DialogEntry? savedEntry = history.Entries.FirstOrDefault(entry => entry.Question == question_text);
+            if (savedEntry != null)
             {
-                MessageBox.Show(ex.Message);
+                string? ans_txt = savedEntry.Answer;
+                Message qst = new Message { IsQuestion = true, Text = question_text };
+                Message ans = new Message { IsQuestion = false, Text = ans_txt };
+
+                AddMessage(qst);
+                AddMessage(ans);
             }
 
-            Message question = new Message { IsQuestion = true, Text = question_text };
-            Message answer = new Message { IsQuestion = false, Text = answer_text };
+            
+            else
+            {
+                GetAnsButton.IsEnabled = false;
+                string answer_text = "";
+                QuestionTextBox.Clear();
+                try
+                {
+                    if (!Bert.isDownloaded)
+                    {
+                        MessageBox.Show("Модель еще не загружена, пожалуйста, подождите");
+                    }
+                    else
+                    {
+                        answer_text = await bert.GetAnswerAsync(LoadedTextControl.Text, question_text, сancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
 
-            AddMessage(question);
-            AddMessage(answer);
+                Message question = new Message { IsQuestion = true, Text = question_text };
+                Message answer = new Message { IsQuestion = false, Text = answer_text };
 
-            GetAnsButton.IsEnabled = true;
+                AddMessage(question);
+                AddMessage(answer);
+
+                GetAnsButton.IsEnabled = true;
+                history.Entries.Add(new DialogEntry { Question = question_text, Answer = answer_text });
+                SaveHistory(history);
+            }
+            
         }
 
         private void AddMessage(Message entry)
@@ -109,6 +134,59 @@ namespace Task2
         private void CancelAnalysisButton_Click(object sender, RoutedEventArgs e)
         {
             сancellationTokenSource.Cancel();
+        }
+
+        [Serializable]
+        public class DialogHistory
+        {
+            public List<DialogEntry> Entries { get; set; } = new List<DialogEntry>();
+        }
+
+        [Serializable]
+        public class DialogEntry
+        {
+            public string? Question { get; set; }
+            public string? Answer { get; set; }
+        }
+
+        private void SaveHistory(DialogHistory history)
+        {
+            string json = JsonConvert.SerializeObject(history);
+            File.WriteAllText(historyFilePath, json);
+        }
+
+        private DialogHistory LoadHistory()
+        {
+            if (File.Exists(historyFilePath))
+            {
+                string json = File.ReadAllText(historyFilePath);
+                return JsonConvert.DeserializeObject<DialogHistory>(json);
+            }
+            return new DialogHistory();
+        }
+
+        private void ClearHistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            File.Delete(historyFilePath);
+            DialogHistoryListBox.Items.Clear();
+        }
+
+        private void InitializeDialog()
+        {
+            DialogHistory? history = LoadHistory();
+            if (history != null)
+            {
+                foreach (var entry in history.Entries)
+                {
+                    Message question = new Message { IsQuestion = true, Text = entry.Question };
+                    Message answer = new Message { IsQuestion = false, Text = entry.Answer };
+
+                    AddMessage(question);
+                    AddMessage(answer);
+                }
+
+            }
+         
         }
     }
 }
