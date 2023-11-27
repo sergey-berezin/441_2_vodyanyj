@@ -34,8 +34,9 @@ namespace Task1
                     Console.Write(text);
                     Console.WriteLine();
                     string modelUrl = "https://storage.yandexcloud.net/dotnet4/bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
-
-                    Bert bert = Bert.GetBert(modelUrl);
+                    string modelPath = "bert-large-uncased-whole-word-masking-finetuned-squad.onnx";
+                    Bert bert = new Bert(modelPath, сancellationToken);
+                    await bert.DownloadBertAsync();
                     consoleMutex.WaitOne();
                     while ((!сancellationToken.IsCancellationRequested))
                     {
