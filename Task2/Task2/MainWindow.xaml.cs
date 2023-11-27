@@ -32,10 +32,7 @@ namespace Task2
         {
             InitializeComponent();
             bert.DownloadBertAsync();
-            InitializeDialog();
         }
-
-
 
         private void LoadTextButton_Click(object sender, RoutedEventArgs e)
         {
@@ -48,6 +45,7 @@ namespace Task2
                     string text = File.ReadAllText(openFileDialog.FileName);
                     LoadedTextControl.Text = text;
                     DialogHistoryListBox.Items.Clear();
+                    InitializeDialog();
 
                 }
                 catch (Exception ex)
@@ -55,6 +53,32 @@ namespace Task2
                     MessageBox.Show($"Ошибка при чтении файла: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        private void InitializeDialog()
+        {
+            DialogHistory? history = LoadHistory();
+            if (history != null)
+            {
+                foreach (var context in history.Contexts)
+                {
+                    if (context.Text == LoadedTextControl.Text)
+                    {
+                        foreach (var entry in context.Entries)
+                        {
+                            Message question = new Message { IsQuestion = true, Text = entry.Question };
+                            Message answer = new Message { IsQuestion = false, Text = entry.Answer };
+
+                            AddMessage(question);
+                            AddMessage(answer);
+                        }
+                        return;
+                    }
+                    
+                }
+
+            }
+
         }
 
         private async void GetAnswerButton_Click(object sender, RoutedEventArgs e)
@@ -70,21 +94,30 @@ namespace Task2
                 MessageBox.Show("Сначала загрузите файл");
                 return;
             }
-
-            DialogHistory? history = LoadHistory();
             
-            DialogEntry? savedEntry = history.Entries.FirstOrDefault(entry => entry.Question == question_text);
-            if (savedEntry != null)
-            {
-                string? ans_txt = savedEntry.Answer;
-                Message qst = new Message { IsQuestion = true, Text = question_text };
-                Message ans = new Message { IsQuestion = false, Text = ans_txt };
+            DialogHistory? history = LoadHistory();
 
-                AddMessage(qst);
-                AddMessage(ans);
+            // Check if text has already been processed
+            DialogContext? context = history.Contexts.FirstOrDefault(ctx => ctx.Text == LoadedTextControl.Text);
+
+            if (context == null)
+            {
+                context = new DialogContext { Text = LoadedTextControl.Text };
+                history.Contexts.Add(context);
             }
 
-            
+            DialogEntry? savedEntry = context.Entries.FirstOrDefault(entry => entry.Question == question_text);
+
+            if (savedEntry != null)
+            {
+                string? answer_text = savedEntry.Answer;
+                Message question = new Message { IsQuestion = true, Text = question_text };
+                Message answer = new Message { IsQuestion = false, Text = answer_text };
+
+                AddMessage(question);
+                AddMessage(answer);
+            }
+
             else
             {
                 GetAnsButton.IsEnabled = false;
@@ -112,11 +145,11 @@ namespace Task2
                 AddMessage(question);
                 AddMessage(answer);
 
-                GetAnsButton.IsEnabled = true;
-                history.Entries.Add(new DialogEntry { Question = question_text, Answer = answer_text });
+                context.Entries.Add(new DialogEntry { Question = question_text, Answer = answer_text });
+               
                 SaveHistory(history);
             }
-            
+            GetAnsButton.IsEnabled = true;
         }
 
         private void AddMessage(Message entry)
@@ -139,6 +172,13 @@ namespace Task2
         [Serializable]
         public class DialogHistory
         {
+            public List<DialogContext> Contexts { get; set; } = new List<DialogContext>();
+        }
+
+        [Serializable]
+        public class DialogContext
+        {
+            public string Text { get; set; }
             public List<DialogEntry> Entries { get; set; } = new List<DialogEntry>();
         }
 
@@ -171,22 +211,5 @@ namespace Task2
             DialogHistoryListBox.Items.Clear();
         }
 
-        private void InitializeDialog()
-        {
-            DialogHistory? history = LoadHistory();
-            if (history != null)
-            {
-                foreach (var entry in history.Entries)
-                {
-                    Message question = new Message { IsQuestion = true, Text = entry.Question };
-                    Message answer = new Message { IsQuestion = false, Text = entry.Answer };
-
-                    AddMessage(question);
-                    AddMessage(answer);
-                }
-
-            }
-         
-        }
     }
 }
