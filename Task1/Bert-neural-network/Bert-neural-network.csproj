@@ -10,9 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="BERTTokenizers" Version="1.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="6.0.25" />
     <PackageReference Include="Microsoft.ML" Version="2.0.1" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.16.0" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.16.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 
 </Project>

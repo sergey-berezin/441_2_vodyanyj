@@ -1,0 +1,172 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bert App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        textarea, input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+            button:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+                opacity: 0.5; /* Добавим полупрозрачность */
+            }
+
+            button:hover:disabled {
+                background-color: #cccccc;
+            }
+
+        h3 {
+            margin-top: 20px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <label for="textInput">Введите текст:</label>
+        <textarea id="textInput" rows="4" cols="50"></textarea>
+    </div>
+    <div>
+        <label for="questionInput">Введите вопрос:</label>
+        <input type="text" id="questionInput">
+        <button onclick="addQuestion()">Добавить вопрос</button>
+    </div>
+    <div>
+        <h2>Вопросы</h2>
+        <ul id="questionList"></ul>
+    </div>
+    <div>
+        <button id="getAnswersBtn" onclick="getAnswers()">Получить ответы</button>
+    </div>
+    <div>
+        <h2>Ответы</h2>
+        <ul id="answerList"></ul>
+    </div>
+
+    <script>
+        let questions = [];
+
+        function addQuestion() {
+            const questionInput = document.getElementById('questionInput');
+            const question = questionInput.value.trim();
+
+            if (question !== "") {
+                questions.push(question);
+                questionInput.value = "";
+                updateQuestionList();
+            }
+        }
+
+        function removeQuestion(index) {
+            questions.splice(index, 1);
+            updateQuestionList();
+        }
+
+        function updateQuestionList() {
+            const questionList = document.getElementById('questionList');
+            questionList.innerHTML = "";
+
+            questions.forEach((question, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${index + 1}. ${question}`;
+
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Удалить';
+                removeButton.style.marginLeft = '10px';
+                removeButton.onclick = () => removeQuestion(index);
+
+                listItem.appendChild(removeButton);
+                questionList.appendChild(listItem);
+            });
+        }
+
+        async function getAnswers() {
+            const textInput = document.getElementById('textInput').value.trim();
+
+            if (questions.length === 0 || textInput === "") {
+                alert("Добавьте вопросы и введите текст перед получением ответов.");
+                return;
+            }
+
+            const getAnswersBtn = document.getElementById('getAnswersBtn');
+            getAnswersBtn.disabled = true;
+
+            try {
+                const response = await fetch('https://localhost:7026/api/questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        Text: textInput,
+                        Questions: questions,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data || !data.Answers || !Array.isArray(data.Answers) || data.Answers.length === 0) {
+                    throw new Error('Некорректный формат ответа от сервера.');
+                }
+
+                updateAnswerList(data.Answers);
+            } catch (error) {
+                console.error('Произошла ошибка при отправке запроса: ' + error);
+                alert('Произошла ошибка при получении ответа.:' + error);
+            } finally {
+                getAnswersBtn.disabled = false;
+            }
+        }
+
+        function updateAnswerList(answers) {
+            const answerList = document.getElementById('answerList');
+            answerList.innerHTML = "";
+
+            answers.forEach((answer, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${index + 1}. ${answer}`;
+                answerList.appendChild(listItem);
+            });
+        }
+    </script>
+</body>
+</html>
